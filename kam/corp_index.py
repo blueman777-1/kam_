@@ -11,8 +11,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
 
-import requests
-
+from kam import http
 from kam.dart_api import DartApiError
 from kam.models import CorpHit
 
@@ -87,7 +86,7 @@ def load_index(api_key: str, refresh: bool = False) -> list[CorpHit]:
         if age < CACHE_TTL_SECONDS:
             return parse_corp_xml(CACHE_PATH.read_text(encoding="utf-8"))
 
-    response = requests.get(CORP_CODE_URL, params={"crtfc_key": api_key}, timeout=60)
+    response = http.get(CORP_CODE_URL, {"crtfc_key": api_key}, timeout=60)
     response.raise_for_status()
     raise_if_error_xml(response.content)
 

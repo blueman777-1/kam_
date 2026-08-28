@@ -7,13 +7,11 @@ OpenDART API 는 첨부 감사보고서 본문을 제공하지 않으므로 뷰�
 import re
 from typing import NamedTuple
 
-import requests
+from kam import http
 
 BASE = "https://dart.fss.or.kr"
 MAIN_URL = f"{BASE}/dsaf001/main.do"
 VIEWER_URL = f"{BASE}/report/viewer.do"
-HEADERS = {"User-Agent": "Mozilla/5.0", "Referer": f"{BASE}/"}
-TIMEOUT = 30
 
 _ATT_SELECT = re.compile(r'<select[^>]*id="att"[^>]*>(.*?)</select>', re.S | re.I)
 _OPTION = re.compile(r'<option[^>]*value="([^"]*)"[^>]*>(.*?)</option>', re.S | re.I)
@@ -81,22 +79,20 @@ def find_opinion_node(nodes: list[dict]) -> dict | None:
 
 
 def fetch_attachments(rcept_no: str) -> list[Attachment]:
-    response = requests.get(MAIN_URL, params={"rcpNo": rcept_no}, headers=HEADERS, timeout=TIMEOUT)
+    response = http.get(MAIN_URL, {"rcpNo": rcept_no})
     response.raise_for_status()
     return parse_attachments(response.text)
 
 
 def fetch_toc(rcept_no: str, dcm_no: str) -> list[dict]:
-    response = requests.get(
-        MAIN_URL, params={"rcpNo": rcept_no, "dcmNo": dcm_no}, headers=HEADERS, timeout=TIMEOUT
-    )
+    response = http.get(MAIN_URL, {"rcpNo": rcept_no, "dcmNo": dcm_no})
     response.raise_for_status()
     return parse_toc(response.text)
 
 
 def fetch_section(node: dict) -> str:
     params = {field: node.get(field, "") for field in VIEWER_FIELDS}
-    response = requests.get(VIEWER_URL, params=params, headers=HEADERS, timeout=TIMEOUT)
+    response = http.get(VIEWER_URL, params)
     response.raise_for_status()
     return response.text
 

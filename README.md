@@ -27,6 +27,12 @@ AI는 이미 확보한 원문을 읽기 쉽게 전달하는 역할만 합니다.
 감사보고서를 열 수 없는 경우가 있습니다. 같은 사업연도의 공시를 접수일 역순으로
 훑으며 첫 성공을 채택하는 방식으로 처리합니다.
 
+**배포 환경에서는 국내 리전 중계를 거칩니다.**
+Streamlit Community Cloud 는 해외 리전에서 실행되는데 FSS 서버가 그 연결을
+받아주지 않습니다(실측: `ConnectTimeout`). `DART_PROXY_BASE` 를 설정하면
+서울 리전에 올린 중계(`api/dart.js`)를 거쳐 나갑니다. 설정이 없으면 직접
+연결하므로 로컬에서는 그대로 동작합니다. 자세한 내용은 `api/README.md` 참고.
+
 **실패는 캐시하지 않습니다.**
 일시적인 네트워크 오류가 캐시에 남으면 문제가 해결된 뒤에도 옛 실패가 계속 돌아옵니다.
 `success`와 `kam_not_present`만 저장합니다.
@@ -44,6 +50,7 @@ cp .streamlit/secrets.toml.example .streamlit/secrets.toml
 
 `OPENDART_API_KEY`는 [OpenDART](https://opendart.fss.or.kr)에서 무료로 발급받습니다.
 `GEMINI_API_KEY`는 선택이며, 없으면 AI 설명 없이 원문만 표시됩니다.
+`DART_PROXY_BASE`도 선택이며, 해외 리전에 배포할 때만 필요합니다.
 
 모델은 `kam/settings.py`의 `GEMINI_MODELS`를 앞에서부터 시도합니다.
 모델이 폐기되거나(404) 일시적으로 과부하일 때(503) 다음 모델로 넘어갑니다.
@@ -74,6 +81,7 @@ OPENDART_API_KEY=... .venv/bin/python scripts/validate_batch.py 20
 app.py              Streamlit 화면
 kam/
   style.py          화면 스타일 (파랑 계열 문서형 레이아웃)
+  http.py           DART 요청 단일 창구 (중계 경유 여부 결정)
   corp_index.py     corpCode.xml → 기업 검색 (종목코드 앞자리 0, 영문 포함 코드 대응)
   dart_api.py       OpenDART list.json + 오류코드 한국어 해석
   dart_doc.py       DART 뷰어 스크래핑 (첨부목록 / 목차 / 원문)

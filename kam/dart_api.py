@@ -9,6 +9,7 @@ from datetime import date, timedelta
 
 import requests
 
+from kam import http
 from kam.models import Filing
 
 LIST_URL = "https://opendart.fss.or.kr/api/list.json"
@@ -78,7 +79,7 @@ def list_annual_reports(api_key: str, corp_code: str, years: int = 3) -> list[Fi
         "page_count": "100",
     }
     try:
-        response = requests.get(LIST_URL, params=params, timeout=30)
+        response = http.get(LIST_URL, params)
         response.raise_for_status()
         payload = response.json()
     except requests.RequestException as exc:
