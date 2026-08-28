@@ -3,6 +3,7 @@
 import streamlit as st
 
 from kam import corp_index, summarize
+from kam.dart_api import DartApiError
 from kam.models import Status
 from kam.resolver import resolve_latest_kam
 from kam.settings import (
@@ -125,6 +126,9 @@ if searched:
             try:
                 index = load_corp_index(dart_key, refresh)
                 st.session_state["hits"] = corp_index.search(index, query)
+            except DartApiError as error:
+                st.session_state.pop("hits", None)
+                st.error(error.message)
             except Exception as error:
                 st.session_state.pop("hits", None)
                 st.error(f"기업 목록을 불러오지 못했습니다: {type(error).__name__}")
