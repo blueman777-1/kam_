@@ -45,6 +45,10 @@ cp .streamlit/secrets.toml.example .streamlit/secrets.toml
 `OPENDART_API_KEY`는 [OpenDART](https://opendart.fss.or.kr)에서 무료로 발급받습니다.
 `GEMINI_API_KEY`는 선택이며, 없으면 AI 설명 없이 원문만 표시됩니다.
 
+모델은 `kam/settings.py`의 `GEMINI_MODELS`를 앞에서부터 시도합니다.
+모델이 폐기되거나(404) 일시적으로 과부하일 때(503) 다음 모델로 넘어갑니다.
+둘 다 실제로 겪은 실패라 목록으로 두었습니다.
+
 ## 테스트
 
 ```bash
@@ -69,6 +73,7 @@ OPENDART_API_KEY=... .venv/bin/python scripts/validate_batch.py 20
 ```
 app.py              Streamlit 화면
 kam/
+  style.py          화면 스타일 (파랑 계열 문서형 레이아웃)
   corp_index.py     corpCode.xml → 기업 검색 (종목코드 앞자리 0, 영문 포함 코드 대응)
   dart_api.py       OpenDART list.json + 오류코드 한국어 해석
   dart_doc.py       DART 뷰어 스크래핑 (첨부목록 / 목차 / 원문)

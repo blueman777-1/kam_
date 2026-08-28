@@ -7,8 +7,8 @@ import os
 
 OPENDART_KEY = "OPENDART_API_KEY"
 GEMINI_KEY = "GEMINI_API_KEY"
-GEMINI_MODEL_KEY = "GEMINI_MODEL"
-DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+# 앞에서부터 시도한다. 모델이 폐기되거나(404) 과부하일 때(503) 다음으로 넘어간다.
+GEMINI_MODELS = ("gemini-3.6-flash", "gemini-3.5-flash-lite")
 
 
 def get_secret(name: str) -> str | None:

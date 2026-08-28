@@ -10,7 +10,7 @@ import json
 from dataclasses import dataclass
 
 from kam.models import KamItem
-from kam.settings import DEFAULT_GEMINI_MODEL, redact
+from kam.settings import GEMINI_MODELS, redact
 
 PROMPT = """당신은 회계감사를 처음 접하는 사람에게 설명하는 선생님입니다.
 아래는 어느 상장기업 감사보고서의 핵심감사사항(KAM) 원문입니다.
@@ -82,31 +82,43 @@ def _validate(payload, expected: int) -> list[Explanation]:
     return explanations
 
 
-def explain(items: list[KamItem], api_key: str, model: str = DEFAULT_GEMINI_MODEL) -> list[Explanation]:
-    """KAM 항목마다 쉬운 설명을 만든다. 실패하면 SummaryError."""
+def _call(prompt: str, api_key: str, model: str) -> list:
+    from google import genai
+    from google.genai import types
+
+    client = genai.Client(api_key=api_key)
+    response = client.models.generate_content(
+        model=model,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=SCHEMA,
+        ),
+    )
+    return json.loads(response.text)
+
+
+def explain(
+    items: list[KamItem], api_key: str, models: tuple[str, ...] = GEMINI_MODELS
+) -> list[Explanation]:
+    """KAM 항목마다 쉬운 설명을 만든다. 실패하면 SummaryError.
+
+    모델은 앞에서부터 시도한다. 모델이 폐기되거나(404) 일시적으로 과부하일 때(503)
+    다음 모델로 넘어간다. 둘 다 실제로 겪은 실패다.
+    """
     if not items:
         return []
     if not api_key:
         raise SummaryError("Gemini 키가 없어 AI 설명을 건너뜁니다.")
 
-    try:
-        from google import genai
-        from google.genai import types
+    prompt = _as_prompt(items)
+    last_error = "호출을 시도하지 못했습니다."
+    for model in models:
+        try:
+            return _validate(_call(prompt, api_key, model), len(items))
+        except SummaryError as error:
+            last_error = str(error)
+        except Exception as exc:
+            last_error = redact(f"{type(exc).__name__}: {exc}", api_key)
 
-        client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(
-            model=model,
-            contents=_as_prompt(items),
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=SCHEMA,
-            ),
-        )
-        payload = json.loads(response.text)
-    except SummaryError:
-        raise
-    except Exception as exc:
-        detail = redact(f"{type(exc).__name__}: {exc}", api_key)
-        raise SummaryError(f"AI 설명을 생성하지 못했습니다. ({detail})") from None
-
-    return _validate(payload, len(items))
+    raise SummaryError(f"AI 설명을 생성하지 못했습니다. ({last_error})")
