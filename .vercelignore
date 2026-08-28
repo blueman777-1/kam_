@@ -1,0 +1,15 @@
+# Vercel 은 api/ 의 DART 중계 함수만 빌드하면 된다.
+#
+# 루트에 app.py 와 requirements.txt 가 있으면 Vercel 이 저장소 전체를
+# Python 웹앱으로 인식하고 WSGI 진입점을 찾다가 빌드에 실패한다.
+#   "Found app.py but it does not export a top-level app/application/handler"
+# app.py 는 Streamlit 앱이라 그런 진입점이 없다. 그래서 아예 올리지 않는다.
+
+app.py
+requirements.txt
+kam/
+tests/
+scripts/
+docs/
+.streamlit/
+.cache/

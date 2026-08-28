@@ -6,6 +6,18 @@ Streamlit Community Cloud 는 해외 리전에서 실행되는데, FSS 서버가
 이 디렉터리의 함수를 Vercel 서울 리전(`icn1`)에 올리면
 Streamlit → Vercel(서울) → DART 순서로 요청이 나갑니다.
 
+## Vercel 이 저장소 전체를 빌드하지 않게 하기
+
+루트에 `app.py` 와 `requirements.txt` 가 있으면 Vercel 이 저장소를 Python 웹앱으로
+인식하고 WSGI 진입점을 찾다가 빌드에 실패합니다.
+
+```
+Found app.py but it does not export a top-level "app", "application", or "handler" variable.
+```
+
+`app.py` 는 Streamlit 앱이라 그런 진입점이 없습니다. `.vercelignore` 로 Python 쪽 파일을
+제외해 Vercel 이 `api/` 의 함수만 빌드하게 했습니다.
+
 ## 배포
 
 1. https://vercel.com 에서 GitHub 계정으로 로그인
@@ -24,8 +36,16 @@ Streamlit → Vercel(서울) → DART 순서로 요청이 나갑니다.
 
 ## 동작 확인
 
+배포 주소를 그냥 열면 안내 문구만 나옵니다. 실제 동작은 `/api/dart` 로 확인합니다.
+
 ```bash
-curl -s "https://kam-xxxx.vercel.app/api/dart?url=https%3A%2F%2Fdart.fss.or.kr%2F" -o /dev/null -w "%{http_code}\n"
+# DART 대상 → 200
+curl -s -o /dev/null -w "%{http_code}\n" \
+  "https://kam-xxxx.vercel.app/api/dart?url=https%3A%2F%2Fdart.fss.or.kr%2F"
+
+# 허용되지 않은 대상 → 403
+curl -s -o /dev/null -w "%{http_code}\n" \
+  "https://kam-xxxx.vercel.app/api/dart?url=https%3A%2F%2Fexample.com%2F"
 ```
 
 ## 보안
