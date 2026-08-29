@@ -21,6 +21,13 @@ from kam.html_text import to_block_text
 from kam.models import KamItem, ParsedOpinion, Status
 
 _HEADING = re.compile(r"^핵심감사사항(\(.*\))?$")
+# 감사절차를 예고하는 문장. '감사절차'와 '다음'이 함께 오는 것이 공통점이다.
+#   "핵심감사사항에 대응하기 위한 우리의 감사절차는 다음을 포함합니다."
+#   "우리가 ...와 관련하여 수행한 주요 감사 절차는 다음과 같습니다."
+_PROCEDURE = re.compile(r"감사\s?절차")
+# 이유 문단은 문장으로 끝난다. "…있습니다(주석14)." 처럼 괄호로 끝나기도 한다.
+_SENTENCE_END = (".", "다")
+MAX_REASON_LINES = 6
 _SECTION_END = ("경영진과 지배기구의 책임", "감사인의 책임")
 _AUDITOR = re.compile(r"^([가-힣]{2,6}회계법인)")
 
@@ -29,14 +36,18 @@ def _nospace(line: str) -> str:
     return line.replace(" ", "")
 
 
+# 소제목은 그 문구로 끝난다. 본문 문장 안에 같은 말이 나와도 걸리지 않게 한다.
+# 앞에는 '1)', '가.' 같은 번호가, 뒤에는 '등'이 붙기도 한다.
+_REASON = re.compile(r"핵심감사사항으로결정[한된]이유(등)?$")
+_RESPONSE = re.compile(r"핵심감사사항이감사에서다루어진방법(등)?$")
+
+
 def _is_reason(line: str) -> bool:
-    packed = _nospace(line)
-    return "결정한이유" in packed and len(packed) <= 30
+    return bool(_REASON.search(_nospace(line)))
 
 
 def _is_response(line: str) -> bool:
-    packed = _nospace(line)
-    return "다루어진방법" in packed and len(packed) <= 35
+    return bool(_RESPONSE.search(_nospace(line)))
 
 
 def _find_auditor(lines: list[str]) -> str | None:
@@ -58,6 +69,54 @@ def _section_bounds(lines: list[str]) -> tuple[int, int] | None:
             end = i
             break
     return start, end
+
+
+def _is_procedure_lead(line: str) -> bool:
+    """'…감사절차는 다음과 같습니다' 처럼 대응 절차를 예고하는 문장."""
+    return bool(_PROCEDURE.search(line)) and "다음" in line and len(line) <= 160
+
+
+def _extract_items_narrative(section: list[str]) -> list[KamItem]:
+    """소제목 없이 제목·이유·절차예고문으로만 이어지는 문서를 읽는다.
+
+    항목 경계는 절차예고문 뒤에서부터 다음 절차예고문 직전까지 거슬러 올라가며
+    '문장으로 끝나는 줄'(이유 문단)의 연속 구간을 찾고, 그 앞줄을 제목으로 본다.
+    이유 문단이 지나치게 길면 경계를 확신할 수 없으므로 제목을 비워 둔다.
+    (그 경우 상위에서 manual_review_required 로 판정된다.)
+    """
+    leads = [i for i, line in enumerate(section) if _is_procedure_lead(line)]
+    if not leads:
+        return []
+
+    # 구간 첫머리의 정형 문구("핵심감사사항은 우리의 전문가적 판단에 따라…")를 건너뛰고
+    # 문장으로 끝나지 않는 첫 줄을 첫 항목의 제목으로 본다.
+    first = 0
+    while first < leads[0] and section[first].endswith(_SENTENCE_END):
+        first += 1
+    starts = [first if first < leads[0] else -1]
+
+    for n in range(len(leads) - 1):
+        cursor = leads[n + 1] - 1
+        while cursor > leads[n] and section[cursor].endswith(_SENTENCE_END):
+            cursor -= 1
+        too_long = leads[n + 1] - cursor > MAX_REASON_LINES
+        starts.append(-1 if too_long or cursor <= leads[n] else cursor)
+
+    items = []
+    for n, lead in enumerate(leads):
+        start = starts[n]
+        if start < 0:
+            items.append(KamItem("", "", ""))
+            continue
+        end = starts[n + 1] if n + 1 < len(starts) and starts[n + 1] >= 0 else len(section)
+        items.append(
+            KamItem(
+                title=section[start].strip(),
+                reason="\n".join(section[start + 1 : lead]).strip(),
+                response="\n".join(section[lead:end]).strip(),
+            )
+        )
+    return items
 
 
 def _extract_items(section: list[str]) -> list[KamItem]:
@@ -104,7 +163,8 @@ def parse_opinion(source: str) -> ParsedOpinion:
         return ParsedOpinion(status=status, auditor=auditor, raw_text=text)
 
     start, end = bounds
-    items = _extract_items(lines[start + 1 : end])
+    section = lines[start + 1 : end]
+    items = _extract_items(section) or _extract_items_narrative(section)
     incomplete = any(not item.title or not item.reason or not item.response for item in items)
     status = Status.SUCCESS if items and not incomplete else Status.MANUAL_REVIEW_REQUIRED
 

@@ -4,7 +4,8 @@
 
 [![Streamlit](https://img.shields.io/badge/Streamlit-앱%20열기-2563EB?logo=streamlit&logoColor=white)](https://kamgit-y2zkb7u53wcmbg2uoqder5.streamlit.app/)
 ![Python](https://img.shields.io/badge/Python-3.12+-2563EB?logo=python&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-61%20passed-2563EB)
+![Tests](https://img.shields.io/badge/tests-66%20passed-2563EB)
+![Coverage](https://img.shields.io/badge/추출%20성공률-92.5%25%20(40개사)-2563EB)
 
 <img src="docs/screenshot-result.jpg" width="720" alt="조회 결과 화면">
 
@@ -141,6 +142,10 @@ AI 모델은 `kam/settings.py`의 `GEMINI_MODELS`를 앞에서부터 시도합�
 | 카카오 | 인라인 태그로 쪼개진 문장 복원 |
 | 쌍용씨앤이 | KAM이 실제로 없는 경우 |
 | 제주항공 | 정정공시 ↔ 원공시 `dcmNo` 불일치 |
+| 에코프로비엠 | 소제목 없이 제목·이유·절차로만 이어지는 서술형 |
+| 현대자동차 | `가./나.` 번호 제목, 항목 여러 건 |
+| 아모레퍼시픽 | `(1)` 괄호번호 제목 |
+| 고려아연 | 항목 경계가 모호해 수동 확인이 필요한 경우 |
 
 ## 추출 성공률 측정
 
@@ -150,6 +155,18 @@ OPENDART_API_KEY=... .venv/bin/python scripts/validate_batch.py 20
 
 **모든 상장기업에서 정확히 추출된다고 보장하지 않습니다.** 이 스크립트가 실제 성공률을
 숫자로 알려주고, 앱은 불완전한 파싱을 성공으로 위장하지 않으며 항상 DART 원문 링크를 함께 제공합니다.
+
+시가총액 상위 40개사 기준 최근 측정값입니다.
+
+| 상태 | 건수 |
+|---|---|
+| `success` | 37 (92.5%) |
+| `manual_review_required` | 2 (5.0%) — 신한지주, 고려아연 |
+| `failed` | 1 (2.5%) — 셀트리온헬스케어(합병으로 최근 사업보고서 없음) |
+
+처음 측정했을 때는 32.5%였습니다. 표본 10개사로만 파서를 만들었더니 소제목을 쓰지 않는
+서술형 문서를 전혀 읽지 못했고, 이 스크립트가 그 사실을 드러냈습니다.
+`핵심감사사항으로 결정된 이유`(피동형) 같은 표기 차이도 여기서 발견했습니다.
 
 ## 구조
 
