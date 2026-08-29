@@ -1,3 +1,4 @@
-streamlit>=1.40
-requests>=2.32
-google-genai>=1.0
+# 로컬과 배포 환경에서 실제로 검증한 버전을 하한으로 고정한다.
+streamlit>=1.62
+requests>=2.34
+google-genai>=2.20
